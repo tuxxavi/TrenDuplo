@@ -1,3 +1,4 @@
+// Includes necesarios para el proyecto
 #include <Arduino.h>
 #include <lvgl.h>
 #include "display.h"
@@ -5,31 +6,36 @@
 #include "lv_port.h"
 #include "Lpf2Hub.h"
 
+// Definición de constantes
 #define LVGL_PORT_ROTATION_DEGREE (90)
 
-
+// Definición de variables globales
 int current_ligth = 0;
+int velocidad = 0;
 std::string COLORS_NAME[11] = {"OFF", "PINK", "PURPLE", "BLUE", "LIGHTBLUE", "CYAN", "GREEN", "YELLOW", "ORANGE", "RED", "WHITE"};
 
-lv_obj_t *slider;     // Slider global para controlar su valor desde el botón "Detener"
-lv_obj_t *value_label; // Etiqueta para mostrar el valor del punto seleccionado
-lv_obj_t *kb;         // Teclado virtual
-lv_obj_t *btn_connect;  // Botón de conectar WiFi
+// Punteros a objetos gráficos
+lv_obj_t *slider;
+lv_obj_t *value_label;
+lv_obj_t *kb;
+lv_obj_t *btn_connect;
 lv_obj_t *label_led;
 lv_obj_t *label_info;
 lv_meter_indicator_t *indic_line;
 lv_obj_t *meter3;
 
+// Estilos de los botones
 lv_style_t style_btn_red;
 lv_style_t style_btn_yellow;
 lv_style_t style_btn_green;
 lv_style_t style_btn_orange;
 lv_style_t style_btn_grey;
 
+// Controlador del hub del tren
 Lpf2Hub myHub;
 byte motorPort = (byte)DuploTrainHubPort::MOTOR;
 
-// Declaración de funciones para el control del tren
+// Declaración de funciones
 void connect_train();
 void play_horn();
 void light_state();
@@ -38,7 +44,13 @@ void stop_train();
 void update_battery(lv_obj_t *label_battery);
 void slider_event_cb(lv_event_t *e);
 void stop_slider_event_cb(lv_event_t *e);
-void create_train_ui(lv_obj_t *tab);        // Nueva función para crear la interfaz del tren en un tab
+void create_train_ui(lv_obj_t *tab);
+void slider_control(lv_obj_t *slider);
+void train_tick();
+void colorSensorCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData);
+void speedometerSensorCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData);
+
+// Implementación de funciones
 
 // Simulación de conexión al tren
 void connect_train() {
@@ -100,16 +112,14 @@ void fill_water() {
 // Detener el tren
 void stop_train() {
     if (myHub.isConnected()) {
-      myHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
-      delay(200);
-      myHub.setBasicMotorSpeed(motorPort, 0);
-      myHub.stopBasicMotor(motorPort);
+      stop_slider_event_cb(nullptr);
     } else {
         lv_label_set_text(label_info, "STATE: Tren desconectado.");
     }
 }
 
 // Actualización del nivel de batería (simulación)
+//TODO
 void update_battery(lv_obj_t *label_battery) {
     char buffer[16];
     sprintf(buffer, "Bateria: %d%%", 100);
@@ -118,7 +128,7 @@ void update_battery(lv_obj_t *label_battery) {
 
 // Control del slider (palanca) y actualización del velocímetro
 void slider_event_cb(lv_event_t *e) 
-{
+{ 
   if(e != nullptr)
   {
     lv_obj_t *slider = lv_event_get_target(e);
@@ -126,27 +136,37 @@ void slider_event_cb(lv_event_t *e)
   
   int slider_value = lv_slider_get_value(slider);
 
+  int speed = 0;
+  if ( slider_value > 40) speed = 64;       //Fast foreward
+  else if (slider_value > 30) speed = 32;   //normal forweard
+  else if (slider_value > 20) speed = 16;   //slow forefard (might not work on low battery) 
+  else if (slider_value > -10) speed = 0;   //stop
+  else if (slider_value > -30) speed = -32; //slow backward
+  else speed = -64;                         //fast foreward
+
   if (myHub.isConnected())
-  {    
-    if (slider_value < 10 && slider_value > -10)
-    {
-      myHub.setBasicMotorSpeed(motorPort, 0);
-      myHub.stopBasicMotor(motorPort);
-    }
-    else
-    {
-      myHub.setBasicMotorSpeed(motorPort, slider_value);
+  {       
+    if(speed != velocidad)
+    { 
+      if(velocidad == 0 && speed > 0)
+      {
+          myHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
+          delay(100);
+      }
+      velocidad = speed;
+      myHub.setBasicMotorSpeed(motorPort, speed);
     }
   }
 
-  lv_meter_set_indicator_value(meter3, indic_line, slider_value>0 ? slider_value : slider_value*-1);  // Ejemplo: valor actual en 30%
+  //marcador
+  lv_meter_set_indicator_value(meter3, indic_line, slider_value>0 ? slider_value : slider_value*-1);
 }
 
 // Función de callback para el botón "Detener" que ajusta el slider a 0
 void stop_slider_event_cb(lv_event_t *e)
 {
-  lv_slider_set_value(slider, 0, LV_ANIM_OFF);  // Establece el valor del slider a 0 sin animación
-  slider_event_cb(nullptr); // Llama a la función del evento del slider para actualizar el velocímetro
+  lv_slider_set_value(slider, 0, LV_ANIM_OFF);
+  slider_event_cb(nullptr); 
 }
 
 void slider_control(lv_obj_t * slider)
@@ -164,7 +184,7 @@ void slider_control(lv_obj_t * slider)
     lv_style_set_bg_opa(&style_main, LV_OPA_COVER);
     lv_style_set_bg_color(&style_main, lv_color_hex3(0xddd));
     lv_style_set_radius(&style_main, LV_RADIUS_CIRCLE);
-    lv_style_set_pad_ver(&style_main, -2); /*Makes the indicator larger*/
+    lv_style_set_pad_ver(&style_main, -2);
 
     lv_style_init(&style_indicator);
     lv_style_set_bg_opa(&style_indicator, LV_OPA_COVER);
@@ -178,14 +198,13 @@ void slider_control(lv_obj_t * slider)
     lv_style_set_border_color(&style_knob, lv_palette_darken(LV_PALETTE_GREY, 3));
     lv_style_set_border_width(&style_knob, 2);
     lv_style_set_radius(&style_knob, LV_RADIUS_CIRCLE);
-    lv_style_set_pad_all(&style_knob, 6); /*Makes the knob larger*/
+    lv_style_set_pad_all(&style_knob, 6);
     lv_style_set_transition(&style_knob, &transition_dsc);
 
     lv_style_init(&style_pressed_color);
     lv_style_set_bg_color(&style_pressed_color, lv_palette_darken(LV_PALETTE_GREY, 2));
 
-    /*Create a slider and add the style*/
-    lv_obj_remove_style_all(slider);        /*Remove the styles coming from the theme*/
+    lv_obj_remove_style_all(slider);
 
     lv_obj_add_style(slider, &style_main, LV_PART_MAIN);
     lv_obj_add_style(slider, &style_indicator, LV_PART_INDICATOR);
@@ -311,29 +330,6 @@ void create_train_ui(lv_obj_t *tab)
     lv_meter_set_indicator_value(meter3, indic_line, 0);  // Ejemplo: valor actual en 30%
 }
 
-static void ta_event_cb(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * ta = lv_event_get_target(e);
-
-    switch (code)
-    {
-      case LV_EVENT_FOCUSED:
-      {
-        lv_keyboard_set_textarea(kb, ta);
-        lv_obj_clear_flag(kb, LV_OBJ_FLAG_HIDDEN);
-      }
-      break;
-      case LV_EVENT_DEFOCUSED:
-      case LV_EVENT_CANCEL:
-      {
-        //lv_keyboard_set_textarea(kb, NULL);
-        //lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
-      }
-      break;
-    }
-}
-
 void setup() {
     Serial.begin(115200);
 
@@ -384,14 +380,6 @@ void train_tick()
 void loop() {
     train_tick();
     unsigned long currentMillis = millis();  // Obtén el tiempo actual
-
-    // Verifica si ha pasado el intervalo de tiempo
-    /*
-    if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis;  // Guarda el último tiempo de actualización
-        fetch_json_data();  // Llama a la función para actualizar los datos de la gráfica
-    }*/
-    // Mantener la actualización de la interfaz gráfica
     lv_task_handler();
     delay(5);
 }

@@ -1,0 +1,42 @@
+# Duplo Train Remote
+
+## Project Description
+The **Duplo Train Remote** is an Arduino-based project that provides a graphical interface to control a LEGO Duplo train. Utilizing the LVGL library, the user interface includes various controls such as sliders for adjusting speed, buttons for controlling lights and horn sounds, and indicators for monitoring train status. The remote connects to the train via Bluetooth and controls the motor speed, lights, and various sound effects.
+
+## Installation
+To set up the project on your local machine, follow these steps:
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/your-username/duplo-train-remote.git
+    cd duplo-train-remote
+    ```
+
+2. Install the required libraries in your Arduino environment:
+
+    - [LVGL](https://github.com/lvgl/lvgl)
+    - [Arduino](https://www.arduino.cc/en/software)
+    - [Lpf2Hub](https://github.com/nathankellenicki/Boost)
+    - [esp-bsp](https://github.com/espressif/esp-bsp)
+
+3. Upload the code to your ESP32 or compatible Arduino board:
+    - Open the `duplo-train-remote.ino` file in your Arduino IDE.
+    - Select the appropriate board and port in the **Tools** menu.
+    - Click **Upload** to flash the program onto your device.
+
+## Screenshots
+Here are some screenshots of the user interface:
+
+1. **Main Control Panel**
+    ![Main UI Screenshot](screenshot1.jpg)
+
+## Source Code
+
+### Necessary Includes:
+```cpp
+#include <Arduino.h>
+#include <lvgl.h>
+#include "display.h"
+#include "esp_bsp.h"
+#include "lv_port.h"
+#include "Lpf2Hub.h"
