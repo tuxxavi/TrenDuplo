@@ -40,3 +40,6 @@ Here are some screenshots of the user interface:
 #include "esp_bsp.h"
 #include "lv_port.h"
 #include "Lpf2Hub.h"
+
+## Licencia
+Este proyecto está bajo una licencia privativa. No se permite la redistribución, modificación o uso del código sin autorización previa del propietario.
